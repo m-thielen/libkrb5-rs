@@ -193,7 +193,7 @@ impl Krb5Context {
             Ok(string) => {
                 unsafe { krb5_free_error_message(self.context, message) };
                 string
-            },
+            }
             Err(error) => error.to_string(),
         }
     }

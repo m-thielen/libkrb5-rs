@@ -1,11 +1,67 @@
+/*!
+ * Build script for libkrb5-sys.
+ *
+ * Original https://github.com/ironthree/libkrb5-rs/blob/master/libkrb5-sys/build.rs
+ *
+ * Modified to add PKG_CONFIG_PATH to the environment so the Homebrew Heimdal libkrb5 is found.
+ */
+
 use std::env;
+use std::ops::Deref;
 use std::path::PathBuf;
+use std::process;
+use std::process::Command;
 
 use pkg_config::probe_library;
 
 fn main() {
-    let library = probe_library("krb5").expect("Unable to find library 'krb5'.");
+    let mut library_ret = probe_library("krb5");
+    if library_ret.is_err() {
+        /* Failed to find krb5 library.
+         * Check if there's Homebrew installed; if so, we use it to locate heimdal kerberos lib.
+         */
+        let brew_out = Command::new("brew")
+            .arg("--prefix")
+            .arg("heimdal")
+            .output()
+            .expect("krb5 library not found and failed to execute brew to locate it");
+        if !brew_out.status.success() {
+            eprintln!(
+                "Failed to run brew to locate krb5: code {}",
+                brew_out.status.code().unwrap()
+            );
+            process::exit(1);
+        }
+        if brew_out.stdout[0] != b'/' {
+            /* we expect an absolute path, so we treat this as an error */
+            eprintln!("Failed to locate krb5: {}", String::from_utf8_lossy(&brew_out.stdout));
+            process::exit(2);
+        }
 
+        /* the krb5.pc file should be in <heimdal path>/lib/pkgconfig */
+        let mut heimdal_pc_path = PathBuf::from(String::from_utf8_lossy(&brew_out.stdout).deref().trim_end());
+        heimdal_pc_path.push("lib/pkgconfig");
+
+        /* append to or create PKG_CONFIG_PATH env var */
+        let pkg_path = match env::var("PKG_CONFIG_PATH") {
+            Ok(val) => {
+                /* append to existing PKG_CONFIG_PATH */
+                format!("{}:{}", val, heimdal_pc_path.to_str().unwrap())
+            }
+            Err(_) => {
+                /* create new PKG_CONFIG_PATH env var */
+                String::from(heimdal_pc_path.to_str().unwrap())
+            }
+        };
+
+        env::set_var("PKG_CONFIG_PATH", pkg_path.clone());
+        eprintln!("Setting PKG_CONFIG_PATH to {}", pkg_path);
+
+        /* try probe again */
+        library_ret = probe_library("krb5");
+    }
+
+    let library = library_ret.expect("Failed to probe krb5");
     for lib in library.libs {
         println!("cargo:rustc-link-lib={}", lib);
     }

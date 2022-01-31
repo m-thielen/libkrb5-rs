@@ -52,20 +52,21 @@ impl<'a> Krb5CCache<'a> {
         Ok(())
     }
 
-    pub fn dup(&self) -> Result<Krb5CCache, Krb5Error> {
-        let mut ccache_ptr: MaybeUninit<krb5_ccache> = MaybeUninit::zeroed();
+    /* MT: commented out since it does not compile (maybe not with Heimdal) */
+    // pub fn dup(&self) -> Result<Krb5CCache, Krb5Error> {
+    //     let mut ccache_ptr: MaybeUninit<krb5_ccache> = MaybeUninit::zeroed();
 
-        let code: krb5_error_code = unsafe { krb5_cc_dup(self.context.context, self.ccache, ccache_ptr.as_mut_ptr()) };
+    //     let code: krb5_error_code = unsafe { krb5_cc_dup(self.context.context, self.ccache, ccache_ptr.as_mut_ptr()) };
 
-        krb5_error_code_escape_hatch(self.context, code)?;
+    //     krb5_error_code_escape_hatch(self.context, code)?;
 
-        let ccache = Krb5CCache {
-            context: self.context,
-            ccache: unsafe { ccache_ptr.assume_init() },
-        };
+    //     let ccache = Krb5CCache {
+    //         context: self.context,
+    //         ccache: unsafe { ccache_ptr.assume_init() },
+    //     };
 
-        Ok(ccache)
-    }
+    //     Ok(ccache)
+    // }
 
     pub fn get_name(&self) -> Result<String, Krb5Error> {
         let name: *const c_char = unsafe { krb5_cc_get_name(self.context.context, self.ccache) };
