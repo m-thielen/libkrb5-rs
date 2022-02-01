@@ -17,17 +17,18 @@ use pkg_config::probe_library;
 fn main() {
     let mut library_ret = probe_library("krb5");
     if library_ret.is_err() {
-        /* Failed to find krb5 library.
+        /* pkg-config failed to find krb5 library.
          * Check if there's Homebrew installed; if so, we use it to locate heimdal kerberos lib.
+         * Calling `brew --prefix heimdal` should yield the heimdal's installation path to stdout.  
          */
         let brew_out = Command::new("brew")
             .arg("--prefix")
             .arg("heimdal")
             .output()
-            .expect("krb5 library not found and failed to execute brew to locate it");
+            .expect("krb5 library not found and failed to execute `brew --prefix` to locate it");
         if !brew_out.status.success() {
             eprintln!(
-                "Failed to run brew to locate krb5: code {}",
+                "Failed to run brew to locate heimdal krb5: code {}",
                 brew_out.status.code().unwrap()
             );
             process::exit(1);
@@ -42,16 +43,13 @@ fn main() {
         let mut heimdal_pc_path = PathBuf::from(String::from_utf8_lossy(&brew_out.stdout).deref().trim_end());
         heimdal_pc_path.push("lib/pkgconfig");
 
-        /* append to or create PKG_CONFIG_PATH env var */
-        let pkg_path = match env::var("PKG_CONFIG_PATH") {
-            Ok(val) => {
-                /* append to existing PKG_CONFIG_PATH */
-                format!("{}:{}", val, heimdal_pc_path.to_str().unwrap())
-            }
-            Err(_) => {
-                /* create new PKG_CONFIG_PATH env var */
-                String::from(heimdal_pc_path.to_str().unwrap())
-            }
+        /* prepend to or create PKG_CONFIG_PATH env var */
+        let pkg_path = if let Ok(val) = env::var("PKG_CONFIG_PATH") {
+            /* append to existing PKG_CONFIG_PATH */
+            format!("{}:{}", heimdal_pc_path.to_str().unwrap(), val)
+        } else {
+            /* create new PKG_CONFIG_PATH env var */
+            String::from(heimdal_pc_path.to_str().unwrap())
         };
 
         env::set_var("PKG_CONFIG_PATH", pkg_path.clone());
