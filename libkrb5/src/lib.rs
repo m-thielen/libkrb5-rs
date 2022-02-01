@@ -1,3 +1,7 @@
+/*!
+ * Kerberos 5 client lib wrapper library base module.
+ *
+ */
 mod ccache;
 pub use ccache::Krb5CCache;
 

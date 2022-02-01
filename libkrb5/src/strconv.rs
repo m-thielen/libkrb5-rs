@@ -1,24 +1,33 @@
+/*!
+ * Rust <-> C string conversion functions.
+ */
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 use crate::error::Krb5Error;
 
+/**
+ * Convert C string to Rust String.
+ */
 pub(crate) fn c_string_to_string(c_string: *const c_char) -> Result<String, Krb5Error> {
-    if c_string.is_null() {
-        return Err(Krb5Error::NullPointerDereference);
-    }
+  if c_string.is_null() {
+    return Err(Krb5Error::NullPointerDereference);
+  }
 
-    match unsafe { CStr::from_ptr(c_string) }.to_owned().into_string() {
-        Ok(string) => Ok(string),
-        Err(error) => Err(error.into()),
-    }
+  match unsafe { CStr::from_ptr(c_string) }.to_owned().into_string() {
+    Ok(string) => Ok(string),
+    Err(error) => Err(error.into()),
+  }
 }
 
+/**
+ * Convert Rust String to C string.
+ */
 pub(crate) fn string_to_c_string(string: &str) -> Result<*const c_char, Krb5Error> {
-    let cstring = match CString::new(string) {
-        Ok(value) => value,
-        Err(_) => return Err(Krb5Error::StringConversion { error: None }),
-    };
+  let cstring = match CString::new(string) {
+    Ok(value) => value,
+    Err(_) => return Err(Krb5Error::StringConversion { error: None }),
+  };
 
-    Ok(cstring.as_ptr())
+  Ok(cstring.as_ptr())
 }
